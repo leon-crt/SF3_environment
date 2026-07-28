@@ -13,12 +13,14 @@ CanRecoverFromStunP1, CanRecoverFromStunP2 = false, false
 HitStateP1, HitStateP2 = nil, nil
 RoundNumber = 0
 Host, Port = "127.0.0.1", 42069
-Timeout = 0.0015
+Timeout = 3
 Desynced = false
 Screen_width = 383
 Input_history_enabled = true
 Control_both_characters = false
 
+ButtonsP1 = {'P1 Left','P1 Up','P1 Right','P1 Down','P1 Weak Punch','P1 Medium Punch','P1 Strong Punch','P1 Weak Kick','P1 Medium Kick','P1 Strong Kick','P1 Start','P1 Coin'}
+ButtonsP2 = {'P2 Left','P2 Up','P2 Right','P2 Down','P2 Weak Punch','P2 Medium Punch','P2 Strong Punch','P2 Weak Kick','P2 Medium Kick','P2 Strong Kick','P2 Start','P2 Coin'}
 function Split(inputstr, sep)
   if sep == nil then
     sep = "%s"
@@ -84,10 +86,10 @@ function FormatState(p1, p2)
     local p2_inputs = string.format("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", p2_inp["Left"] or 0, p2_inp["Up"] or 0, p2_inp["Right"] or 0, p2_inp["Down"] or 0, p2_inp["Weak Punch"] or 0, p2_inp["Medium Punch"] or 0, p2_inp["Strong Punch"] or 0, p2_inp["Weak Kick"] or 0, p2_inp["Medium Kick"] or 0, p2_inp["Strong Kick"] or 0, p2_inp["Start"] or 0, p2_inp["Coin"] or 0)
 
     -- add padding to make every message the same length
-    local raw_string = p1_data .. ',' .. p2_data .. ',' .. p2_inputs .. ','
+    local raw_string = string.format("%s,%s,%s,", p1_data, p2_data, p2_inputs)
     local padding_len = 99 - #raw_string
 
-    local padded_string = raw_string .. string.rep('#', padding_len)
+    local padded_string = string.format("%s%s",raw_string, string.rep('#', padding_len))
     return padded_string
 end
 
@@ -224,20 +226,24 @@ function GameInterface()
 
         if Control_both_characters
         then
-            local raw_combined_input
+            local raw_combined_input, err_comb
             Client:settimeout(0)
             while raw_combined_input == nil do
-                raw_combined_input = Client:receive('*l')
+                raw_combined_input, err_comb = Client:receive('*l')
+                if err_comb == "closed"
+                then
+                    error("Connection Closed Abruptly")
+                end
             end
             local split_combined = Split(raw_combined_input, ';')
             local split_p1_input = Split(split_combined[1], ',')
             local split_p2_input = Split(split_combined[2], ',')
 
             -- format and set P1's and P2's inputs in the game
-            for i, button_name in ipairs(button_order)
+            for i, button_name in ipairs(ButtonsP1)
             do
-                combined_input['P1 ' .. button_name] = SToB[split_p1_input[i]]
-                combined_input['P2 ' .. button_name] = SToB[split_p2_input[i]]
+                combined_input[button_name] = SToB[split_p1_input[i]]
+                combined_input[ButtonsP2[i]] = SToB[split_p2_input[i]]
             end
         else
             -- Receive P1's input
@@ -249,7 +255,7 @@ function GameInterface()
                 raw_p1_input, err = Client:receive('*l')
                 if err == 'closed'
                 then
-                    return nil
+                    error("Connection was closed abruptly")
                 end
             end
 
@@ -257,11 +263,9 @@ function GameInterface()
 
 
             -- format and set P1's input in the game
-            for i, button_name in ipairs(button_order)
+            for i, button_name in ipairs(ButtonsP1)
             do
-                -- change only p1's inputs
-                local prefix = 'P1 '
-                combined_input[prefix .. button_name] = SToB[split_p1_input[i]]
+                combined_input[button_name] = SToB[split_p1_input[i]]
             end
         end
 
@@ -280,6 +284,7 @@ function GameInterface()
             -- empty out the buffer classes so it doesnt slow everything down
             P1:wipe()
             P2:wipe()
+            collectgarbage("collect")
         end
 
         -- draw input history

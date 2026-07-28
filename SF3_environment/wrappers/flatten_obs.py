@@ -12,4 +12,4 @@ class FlattenObservation(gym.ObservationWrapper):
         self.observation_space = Box(shape=(28,), low=mins, high=maxs)
 
     def observation(self, obs):
-        return obs["player_state"] + obs['opponent_state'] + obs['opponent_inputs']
+        return np.concat([obs["player_state"], obs['opponent_state'], obs['opponent_inputs']])

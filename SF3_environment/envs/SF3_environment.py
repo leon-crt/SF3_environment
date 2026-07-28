@@ -24,25 +24,6 @@ def enumWindowsProc(hwnd, lParam):
         if text:
             win32api.SendMessage(hwnd, win32con.WM_CLOSE)
 
-
-def normalize(obs):
-    MAX_X = 928
-    MIN_X = 93
-    MAX_Y = 226
-    MIN_Y = -42
-
-    obs[0] = (obs[0] - MIN_X) / (MAX_X - MIN_X)
-    obs[8] = (obs[8] - MIN_X) / (MAX_X - MIN_X)
-    obs[1] = (obs[1] - MIN_Y) / (MAX_Y - MIN_Y)
-    obs[9] = (obs[9] - MIN_Y) / (MAX_Y - MIN_Y)
-    obs[2] = obs[2] / 161
-    obs[10] = obs[10] / 161
-    obs[3] = obs[3] / 161
-    obs[11] = obs[11] / 336
-    obs[4] = obs[4] / 161
-    obs[12] = obs[12] / 70
-    return obs
-
 class SF3Env(gym.Env):
     metadata = {"render_modes": ["human", "turbo"], "render_fps": 60, "play_modes": ["cpu", "free", "selfplay"]}
 
@@ -79,7 +60,7 @@ class SF3Env(gym.Env):
         }
     
     def flatten_obs(self, obs):
-        return obs["player_state"] + obs['opponent_state'] + obs['opponent_inputs']
+        return  np.concat([obs["player_state"], obs['opponent_state'], obs['opponent_inputs']])
     
     def _parse_state(self, state):
         res = state.split(sep=',')[:-1]
@@ -87,9 +68,9 @@ class SF3Env(gym.Env):
         return res
     
     def _update_fields(self, state):
-        self._player_state = state[:len(self._player_state)]
-        self._opp_state = state[len(self._player_state):-len(self._opp_inputs)]
-        self._opp_inputs = state[-len(self._opp_inputs):]
+        self._player_state = np.array(state[:len(self._player_state)], dtype=np.float32)
+        self._opp_state = np.array(state[len(self._player_state):-len(self._opp_inputs)], dtype=np.float32)
+        self._opp_inputs = np.array(state[-len(self._opp_inputs):], dtype=np.int8)
     
     def reward(self, prev_obs, new_obs):
         r = 0
