@@ -1,25 +1,21 @@
-# Gymnasium Examples
-Some simple examples of Gymnasium environments and wrappers.
-For some explanations of these examples, see the [Gymnasium documentation](https://gymnasium.farama.org).
+# Street Fighter 3 Environment
+This repo contains a Reinforcement Learning Environment for the game Street Fighter 3: 3rd Strike. It can be used to train and test RL or Supervised Learning models, and it was created as part of the [mirror match project](https://github.com/leon-crt/mirror_match).
+### Modes
+The environment supports three modes:
+- `cpu`: The model will play against an arcade CPU opponent (this mode is incomplete at the time of writing, as the opponent's inputs are not read properly)
+- `free`: The game boots up normally and users can play against the model
+- `selfplay`: Inputs for both the player and opponent can be fed to the environment, making it possible to use the environment for self-play training methods.
+Additionally, two render modes are supported:
+- `human`: The game runs at normal speed, suitable for playing against models and testing purposes.
+- `turbo`: The game runs at the highest possible speed, suitable for training purposes.
 
 ### Environments
 This repository hosts the examples that are shown [on the environment creation documentation](https://gymnasium.farama.org/tutorials/gymnasium_basics/environment_creation/).
 - `GridWorldEnv`: Simplistic implementation of gridworld environment
 
 ### Wrappers
-This repository hosts the examples that are shown [on wrapper documentation](https://gymnasium.farama.org/api/wrappers/).
-- `ClipReward`: A `RewardWrapper` that clips immediate rewards to a valid range
-- `DiscreteActions`: An `ActionWrapper` that restricts the action space to a finite subset
-- `RelativePosition`: An `ObservationWrapper` that computes the relative position between an agent and a target
-- `ReacherRewardWrapper`: Allow us to weight the reward terms for the reacher environment
-
-### Contributing
-If you would like to contribute, follow these steps:
-- Fork this repository
-- Clone your fork
-- Set up pre-commit via `pre-commit install`
-
-PRs may require accompanying PRs in [the documentation repo](https://github.com/Farama-Foundation/Gymnasium/tree/main/docs).
+This repo contains the following wrappers to transform the environment's output:
+- `FlattenObservation`: This wrapper flattens the observation dictionary into a single array.
 
 
 ## Installation
@@ -31,3 +27,10 @@ cd SF3_environment
 pip install -e .
 ```
 
+### Contributing
+If you would like to contribute, follow these steps:
+- Fork this repository
+- Clone your fork
+- Set up pre-commit via `pre-commit install`
+
+This environment was implemented following the [Gymnasium documentation](https://gymnasium.farama.org).
