@@ -2,17 +2,13 @@
 This repo contains a Reinforcement Learning Environment for the game Street Fighter 3: 3rd Strike. It can be used to train and test RL or Supervised Learning models, and it was created as part of the [mirror match project](https://github.com/leon-crt/mirror_match).
 ### Modes
 The environment supports three modes:
-- `cpu`: The model will play against an arcade CPU opponent (this mode is incomplete at the time of writing, as the opponent's inputs are not read properly)
-- `free`: The game boots up normally and users can play against the model
+- `cpu`: The model will play against an arcade CPU opponent (this mode is incomplete at the time of writing, as the opponent's inputs are not read properly).
+- `free`: The game boots up normally and users can play against the model.
 - `selfplay`: Inputs for both the player and opponent can be fed to the environment, making it possible to use the environment for self-play training methods.
 
 Additionally, two render modes are supported:
 - `human`: The game runs at normal speed, suitable for playing against models and testing purposes.
 - `turbo`: The game runs at the highest possible speed, suitable for training purposes.
-
-### Environments
-This repository hosts the examples that are shown [on the environment creation documentation](https://gymnasium.farama.org/tutorials/gymnasium_basics/environment_creation/).
-- `GridWorldEnv`: Simplistic implementation of gridworld environment
 
 ### Wrappers
 This repo contains the following wrappers to transform the environment's output:
