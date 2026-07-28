@@ -5,6 +5,7 @@ The environment supports three modes:
 - `cpu`: The model will play against an arcade CPU opponent (this mode is incomplete at the time of writing, as the opponent's inputs are not read properly)
 - `free`: The game boots up normally and users can play against the model
 - `selfplay`: Inputs for both the player and opponent can be fed to the environment, making it possible to use the environment for self-play training methods.
+
 Additionally, two render modes are supported:
 - `human`: The game runs at normal speed, suitable for playing against models and testing purposes.
 - `turbo`: The game runs at the highest possible speed, suitable for training purposes.
