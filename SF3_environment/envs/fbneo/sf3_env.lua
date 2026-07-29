@@ -87,7 +87,7 @@ function FormatState(p1, p2)
 
     -- add padding to make every message the same length
     local raw_string = string.format("%s,%s,%s,", p1_data, p2_data, p2_inputs)
-    local padding_len = 99 - #raw_string
+    local padding_len = 100 - #raw_string
 
     local padded_string = string.format("%s%s",raw_string, string.rep('#', padding_len))
     return padded_string
