@@ -15,6 +15,8 @@ emu_path = PACKAGE_DIR / "fbneo" / "env_emu.exe"
 HOST = "127.0.0.1"
 PORT = 42069
 
+input_size = 10
+
 # TODO:
 #       - use all needed keys for output tensordict
 
@@ -32,19 +34,19 @@ class SF3Env(gym.Env):
         self.mode = mode
         self.P1_ch = P1_ch
         self.P2_ch = P2_ch
-        min_state_limits = np.array([93, -42, 0, 0, 0, 0, 0, 0])
-        max_state_limits = np.array([928, 226, 161, 336, 70, 1, 1, 1])
+        self.min_state_limits = np.array([93, -42, 0, 0, 0, 0, 0, 0])
+        self.max_state_limits = np.array([928, 226, 161, 336, 70, 1, 1, 1])
         self.observation_space = gym.spaces.Dict({
-            'player_state': gym.spaces.Box(min_state_limits, max_state_limits, (8,), np.float32),
-            'opponent_state': gym.spaces.Box(min_state_limits, max_state_limits, (8,), np.float32),
-            'opponent_inputs': gym.spaces.Box(0,1,(12,), np.int8),
+            'player_state': gym.spaces.Box(self.min_state_limits, self.max_state_limits, (8,), np.float32),
+            'opponent_state': gym.spaces.Box(self.min_state_limits, self.max_state_limits, (8,), np.float32),
+            'opponent_inputs': gym.spaces.Box(0,1,(input_size,), np.int8),
         })
         self.action_space = gym.spaces.Dict({
-            'player_inputs': gym.spaces.MultiBinary(12)
+            'player_inputs': gym.spaces.MultiBinary(input_size)
         })
         self._player_state = np.array([-100] * 8)
         self._opp_state = np.array([-100] * 8)
-        self._opp_inputs = np.array([-1] * 12)
+        self._opp_inputs = np.array([-1] * input_size)
         assert render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         self.window = None
@@ -64,6 +66,7 @@ class SF3Env(gym.Env):
     
     def _parse_state(self, state):
         res = state.split(sep=',')[:-1]
+        res = res[:-2]
         res = [int(x) for x in res]
         return res
     
