@@ -6,6 +6,8 @@ import win32api
 import win32con
 import numpy as np
 import gymnasium as gym
+import psutil
+import os
 from pathlib import Path
 
 
@@ -13,7 +15,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 emu_path = PACKAGE_DIR / "fbneo" / "env_emu.exe"
 
 HOST = "127.0.0.1"
-PORT = 42069
+base_port = 42069
 
 input_size = 10
 
@@ -29,6 +31,7 @@ def enumWindowsProc(hwnd, lParam):
 class SF3Env(gym.Env):
     metadata = {"render_modes": ["human", "turbo"], "render_fps": 60, "play_modes": ["cpu", "free", "selfplay"]}
 
+
     def __init__(self, render_mode="human", mode="cpu", threshold=0.5, P1_ch='Ryu', P2_ch='Ken'):
         assert mode in self.metadata["play_modes"]
         self.mode = mode
@@ -41,9 +44,7 @@ class SF3Env(gym.Env):
             'opponent_state': gym.spaces.Box(self.min_state_limits, self.max_state_limits, (8,), np.float32),
             'opponent_inputs': gym.spaces.Box(0,1,(input_size,), np.int8),
         })
-        self.action_space = gym.spaces.Dict({
-            'player_inputs': gym.spaces.MultiBinary(input_size)
-        })
+        self.action_space = gym.spaces.MultiBinary(input_size)
         self._player_state = np.array([-100] * 8)
         self._opp_state = np.array([-100] * 8)
         self._opp_inputs = np.array([-1] * input_size)
@@ -53,6 +54,19 @@ class SF3Env(gym.Env):
         self.clock = None
         self.socket = None
         self.threshold = threshold
+    
+    def _get_used_ports(self):
+        """Returns a set of all TCP ports currently bound/in-use by the OS."""
+        used_ports = set()
+        # Retrieve all active network connections from the OS kernel
+        for conn in psutil.net_connections(kind='inet'):
+            if conn.laddr:
+                used_ports.add(conn.laddr.port)
+        return used_ports
+    
+    def _is_port_free(self, port: int) -> bool:
+        """Checks if a port is unlisted in the OS connection table."""
+        return port not in self._get_used_ports()
     
     def _get_obs(self):
         return {
@@ -118,42 +132,65 @@ class SF3Env(gym.Env):
         super().reset(seed=seed)
         
         # check if emulator instance is already running and close it in case it is
-        if self.window != None:
-            win32gui.EnumWindows(enumWindowsProc, self.window.pid)
-        # start emulator
-        self.window = subprocess.Popen([str(emu_path), "sfiii3nr1", "./sf3_env.lua"])
+        if self.window != None or self.socket != None:
+            self.close()
 
-        # establish tcp connection
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((HOST, PORT))
-        try:
-            # send configuration
-            config = f"{self.mode};{self.render_mode}"
-            self.socket.send(bytes(config + '\r\n', "utf-8"))
+        # TODO: if addess already in use do port + 1 and same for lua
+        num_attempts = 0
+        connection_succeeded = False
 
-            # receive first state
-            data = self.socket.recv(100)
-            # catch graceful disconnection
-            if not data:
-                raise ConnectionError(f"Client {HOST} disconnected gracefully.")
+        free_port = None
+        curr_port = base_port
+        while free_port == None:
+            if self._is_port_free(curr_port):
+                free_port = curr_port
+            else:
+                curr_port += 1
+
+        # add port to environment for child processes so that lua side can read it
+        env = os.environ.copy()
+        env["EMU_PORT"] = str(free_port)
+
+        while not connection_succeeded:
+            # start emulator
+            self.window = subprocess.Popen([str(emu_path), "sfiii3nr1", "./sf3_env.lua"], env=env)
+
+            # establish tcp connection
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((HOST, free_port))
+            try:
+                # send configuration
+                config = f"{self.mode};{self.render_mode}"
+                self.socket.send(bytes(config + '\r\n', "utf-8"))
+
+                # receive first state
+                data = self.socket.recv(100)
+                # catch graceful disconnection
+                if not data:
+                    raise ConnectionError(f"Client {HOST} disconnected gracefully.")
+                
+                data = data.decode('utf-8')
             
-            data = data.decode('utf-8')
-        
-            # decode the string and remove the padding
-            data = data.replace('#', '')
-            state = self._parse_state(data)
-            # update class variables
-            self._update_fields(state)
-            
-        except (ConnectionResetError, BrokenPipeError) as e:
-            # catch abrupt network cut
-            raise ConnectionError(f"Connection with {HOST} was interrupted abruptly: {e}")
+                # decode the string and remove the padding
+                data = data.replace('#', '')
+                state = self._parse_state(data)
+                # update class variables
+                self._update_fields(state)
+                connection_succeeded = True
+                
+            except (ConnectionResetError, BrokenPipeError) as e:
+                # catch abrupt network cut
+                num_attempts += 1
+                self.close()
+                if num_attempts >= 3:
+                    raise ConnectionError(f"Connection with {HOST} was interrupted abruptly: {e}")
 
         return self._get_obs(), {}
 
     # Step function for when mode=selfplay so that inputs for both players are provided
     def step(self, action_player, action_opp=None):
-        action_player = list(action_player)
+        action_player = np.array(action_player, dtype=np.int8)
+        action_player = action_player.tolist()
         # format and send the action based on whether we are doing self play or not
         if action_opp != None:
             data_p1 = str(action_player)[1:-1].replace(' ', '')
@@ -192,7 +229,8 @@ class SF3Env(gym.Env):
         return observation, r, terminated, False, {}
 
     def close(self):
-        self.socket.close()
+        if self.socket != None:
+            self.socket.close()
+            self.socket = None
         if self.window != None:
             win32gui.EnumWindows(enumWindowsProc, self.window.pid)
-        self.socket = None

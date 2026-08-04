@@ -16,7 +16,7 @@ Host, Port = "127.0.0.1", 42069
 Timeout = 3
 Desynced = false
 Screen_width = 383
-Input_history_enabled = true
+Input_history_enabled = false
 Control_both_characters = false
 
 ButtonsP1 = {'P1 Left','P1 Up','P1 Right','P1 Down','P1 Weak Punch','P1 Medium Punch','P1 Strong Punch','P1 Weak Kick','P1 Medium Kick','P1 Strong Kick','P1 Start','P1 Coin'}
@@ -284,7 +284,6 @@ function GameInterface()
             -- empty out the buffer classes so it doesnt slow everything down
             P1:wipe()
             P2:wipe()
-            collectgarbage("collect")
         end
 
         -- draw input history
@@ -351,12 +350,23 @@ function GameInterface()
     else
         return nil
     end
+    if frame_number % 50 == 0
+    then
+        collectgarbage("collect")
+    end
 end
 
 -- Establish TCP socket connection
+local port = os.getenv("EMU_PORT")
+
 Tcp = assert(socket.tcp())
-Tcp:bind(Host, Port)
-Tcp:listen()
+local success, err = Tcp:bind(Host, port)
+if success ~= 1
+then
+    Tcp:close()
+    error(err)
+end
+Tcp:listen(0)
 Client = Tcp:accept()
 Client:settimeout(Timeout)
 local data = Client:receive('*l')
