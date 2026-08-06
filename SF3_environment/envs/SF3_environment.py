@@ -115,6 +115,8 @@ class SF3Env(gym.Env):
         # time-step penalty
         if new_state[health_pl] <= new_state[health_opp]:
             r -= 0.05
+        else:
+            r -= 0.01
         
         # stun related rewards and penalties
         if new_state[stun_pl] == 1 and prev_state[stun_pl] == 0:
