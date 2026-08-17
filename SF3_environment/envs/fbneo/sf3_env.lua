@@ -378,6 +378,8 @@ if config["mode"] == "cpu" then
     savestate.load(fs)
 elseif config["mode"] == "selfplay" then
     Control_both_characters = true
+    local fs = savestate.create("./savestates/akuma1_akuma1.fs")
+    savestate.load(fs)
 end
 
 if config["speed"] == "turbo" then
