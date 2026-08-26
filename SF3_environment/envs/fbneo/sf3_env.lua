@@ -18,6 +18,7 @@ Desynced = false
 Screen_width = 383
 Input_history_enabled = false
 Control_both_characters = false
+AddPlayerState = false
 
 ButtonsP1 = {'P1 Left','P1 Up','P1 Right','P1 Down','P1 Weak Punch','P1 Medium Punch','P1 Strong Punch','P1 Weak Kick','P1 Medium Kick','P1 Strong Kick','P1 Start','P1 Coin'}
 ButtonsP2 = {'P2 Left','P2 Up','P2 Right','P2 Down','P2 Weak Punch','P2 Medium Punch','P2 Strong Punch','P2 Weak Kick','P2 Medium Kick','P2 Strong Kick','P2 Start','P2 Coin'}
@@ -79,7 +80,7 @@ function StunHandler(player, stun, stunned, state, isStunned, canRecoverFromStun
     return stunned, canRecoverFromStun, isStunned
 end
 
-function FormatState(p1, p2)
+function FormatState(p1, p2, extraInfo)
     local p1_data = string.format("%d,%d,%d,%d,%d,%d,%d,%d", p1.posX[#p1.posX], p1.posY[#p1.posY], p1.health[#p1.health], p1.super[#p1.super], p1.stun[#p1.stun], p1.isStunned[#p1.isStunned], p1.hit[#p1.hit], p1.thrown[#p1.thrown])
     local p2_data = string.format("%d,%d,%d,%d,%d,%d,%d,%d", p2.posX[#p2.posX], p2.posY[#p2.posY], p2.health[#p2.health], p2.super[#p2.super], p2.stun[#p2.stun], p2.isStunned[#p2.isStunned], p2.hit[#p2.hit], p2.thrown[#p2.thrown])
     local p2_inp = p2.inputs[#p2.inputs]
@@ -87,10 +88,15 @@ function FormatState(p1, p2)
 
     -- add padding to make every message the same length
     local raw_string = string.format("%s,%s,%s,", p1_data, p2_data, p2_inputs)
-    local padding_len = 100 - #raw_string
-
+    -- add extra info if present
+    if extraInfo ~= nil then
+        raw_string = raw_string .. extraInfo .. ','
+    end
+    
+    local padding_len = 200 - #raw_string
+    
     local padded_string = string.format("%s%s",raw_string, string.rep('#', padding_len))
-    return padded_string
+    return padded_string, padding_len
 end
 
 BToN = { [true] = 1, [false] = 0}
@@ -172,6 +178,7 @@ function GameInterface()
     local hitP1, hitP2 = 0, 0
     local beingThrownP1, beingThrownP2
     local stateP1, stateP2
+    local currentActionP1, actionGroupP1
     -- Get current game phase
     local in_match = memory.readbyte(0x020154A7)  -- 1 = match intro, 2 = after round start, 9 = character select, 6 = end of round, 8 = transition between rounds
 
@@ -191,6 +198,7 @@ function GameInterface()
         -- Stun management hell
         stunP1 = bit.rshift(memory.readdword(0x020695F7 + 0x6), 24) -- stun -> 0x02028805  stunstatus -> 0x020695FD
         stunP2 = memory.readbyte(0x02028829)
+        currentActionP1, actionGroupP1 = tostring(memory.readbyte(0x02068E75)), memory.readbyte(0x02068E73)
         stateP1, stateP2 = memory.readbyte(0x02068E75), memory.readbyte(0x020691B3)
 
         StunnedP1, CanRecoverFromStunP1, isStunnedP1 = StunHandler(P1, stunP1, StunnedP1, stateP1, isStunnedP1, CanRecoverFromStunP1)
@@ -218,8 +226,14 @@ function GameInterface()
         P1:update(posXP1, posYP1, healthP1, superP1, stunP1, isStunnedP1, hitP1, beingThrownP1, nil)
         P2:update(posXP2, posYP2, healthP2, superP2, stunP2, isStunnedP2, hitP2, beingThrownP2, local_p2_input)
 
+        -- if testing, we need to add the action variables to the gamestate
+        local extraInfo = nil
+        if AddPlayerState then
+            extraInfo = string.format("%s,%s", currentActionP1, actionGroupP1)
+        end
+
         -- Send the game state to model interface
-        local gamestate = FormatState(P1,P2)
+        local gamestate = FormatState(P1,P2, extraInfo)
         local _, errmsg = Client:send(gamestate)
 
         local button_order = {'Left','Up','Right','Down','Weak Punch','Medium Punch','Strong Punch','Weak Kick','Medium Kick','Strong Kick','Start','Coin'}
@@ -319,9 +333,15 @@ function GameInterface()
         -- update the classes one last time for the end of match result (inputs are the same as previous frame for convenience)
         P1:update(P1.posX[#P1.posX], P1.posY[#P1.posY], finalHealthP1, P1.super[#P1.super], P1.stun[#P1.stun], P1.isStunned[#P1.isStunned], hitP1, P1.thrown[#P1.thrown], P1.inputs[#P1.inputs])
         P2:update(P2.posX[#P2.posX], P2.posY[#P2.posY], finalHealthP2, P2.super[#P2.super], P2.stun[#P2.stun], P2.isStunned[#P2.isStunned], hitP2, P2.thrown[#P2.thrown], P2.inputs[#P2.inputs])
+        
+        -- Handle the action info if testing
+        local extraInfo = nil
+        if AddPlayerState then
+            extraInfo = string.format("%s,%s", tostring(0),tostring(0))
+        end
 
         -- Send the last state to the handler
-        local gamestate = FormatState(P1,P2)
+        local gamestate = FormatState(P1,P2, extraInfo)
 
         -- Reset global round specific variables
         P1:wipe()
@@ -372,7 +392,7 @@ Client:settimeout(Timeout)
 local data = Client:receive('*l')
 data = Split(data, ';')
 local config = {["mode"] = data[1], ["speed"] = data[2]}
-if config["mode"] == "cpu" then
+if config["mode"] == "cpu" or config["mode"] == "test" then
     -- Load savestate
     local fs = savestate.create("./savestates/CPU_Yang_lvl_2.fs")
     savestate.load(fs)
@@ -380,6 +400,10 @@ elseif config["mode"] == "selfplay" then
     Control_both_characters = true
     local fs = savestate.create("./savestates/akuma1_akuma1.fs")
     savestate.load(fs)
+end
+
+if config["mode"] == "test" then
+    AddPlayerState = true
 end
 
 if config["speed"] == "turbo" then
