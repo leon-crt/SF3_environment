@@ -29,7 +29,7 @@ def enumWindowsProc(hwnd, lParam):
             win32api.SendMessage(hwnd, win32con.WM_CLOSE)
 
 class SF3Env(gym.Env):
-    metadata = {"render_modes": ["human", "turbo"], "render_fps": 60, "play_modes": ["cpu", "free", "selfplay"]}
+    metadata = {"render_modes": ["human", "turbo"], "render_fps": 60, "play_modes": ["cpu", "free", "selfplay", "test"]}
 
 
     def __init__(self, render_mode="human", mode="cpu", threshold=0.5, P1_ch='Ryu', P2_ch='Ken'):
@@ -136,6 +136,7 @@ class SF3Env(gym.Env):
         
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        info = {}
         
         # check if emulator instance is already running and close it in case it is
         if self.window != None or self.socket != None:
@@ -170,7 +171,7 @@ class SF3Env(gym.Env):
                 self.socket.send(bytes(config + '\r\n', "utf-8"))
 
                 # receive first state
-                data = self.socket.recv(100)
+                data = self.socket.recv(200)
                 # catch graceful disconnection
                 if not data:
                     raise ConnectionError(f"Client {HOST} disconnected gracefully.")
@@ -180,6 +181,11 @@ class SF3Env(gym.Env):
                 # decode the string and remove the padding
                 data = data.replace('#', '')
                 state = self._parse_state(data)
+                if self.mode == "test":
+                    info["modelAction"] = state[-2]
+                    info["modelActionGroup"] = state[-1]
+                    state = state[:26]
+
                 # update class variables
                 self._update_fields(state)
                 connection_succeeded = True
@@ -191,10 +197,11 @@ class SF3Env(gym.Env):
                 if num_attempts >= 3:
                     raise ConnectionError(f"Connection with {HOST} was interrupted abruptly: {e}")
 
-        return self._get_obs(), {}
+        return self._get_obs(), info
 
     # Step function for when mode=selfplay so that inputs for both players are provided
     def step(self, action_player, action_opp=None):
+        info = {}
         action_player = np.array(action_player, dtype=np.int8)
         action_player = action_player.tolist()
         # format and send the action based on whether we are doing self play or not
@@ -209,7 +216,7 @@ class SF3Env(gym.Env):
         terminated = False
 
         # receive next game state
-        data = self.socket.recv(100)
+        data = self.socket.recv(200)
 
         # catch graceful disconnection
         if not data:
@@ -223,6 +230,11 @@ class SF3Env(gym.Env):
             terminated = True
         else:
             data = self._parse_state(data)
+
+        if self.mode == "test":
+            info["modelAction"] = data[-2]
+            info["modelActionGroup"] = data[-1]
+            data = data[:26]
         
         previous_state = self._get_obs()
         # update class variables
@@ -232,7 +244,7 @@ class SF3Env(gym.Env):
         # compute reward
         r = self.reward(previous_state, observation)
 
-        return observation, r, terminated, False, {}
+        return observation, r, terminated, False, info
 
     def close(self):
         if self.socket != None:
