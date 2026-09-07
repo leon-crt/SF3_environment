@@ -80,7 +80,7 @@ class SF3Env(gym.Env):
     
     def _parse_state(self, state):
         res = state.split(sep=',')[:-1]
-        res = res[:-2]
+        res = res[:-4] + res[-2:]
         res = [int(x) for x in res]
         return res
     
