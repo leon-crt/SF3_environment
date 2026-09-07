@@ -19,6 +19,7 @@ Screen_width = 383
 Input_history_enabled = false
 Control_both_characters = false
 AddPlayerState = false
+ChipDmgTolerance = 2
 
 ButtonsP1 = {'P1 Left','P1 Up','P1 Right','P1 Down','P1 Weak Punch','P1 Medium Punch','P1 Strong Punch','P1 Weak Kick','P1 Medium Kick','P1 Strong Kick','P1 Start','P1 Coin'}
 ButtonsP2 = {'P2 Left','P2 Up','P2 Right','P2 Down','P2 Weak Punch','P2 Medium Punch','P2 Strong Punch','P2 Weak Kick','P2 Medium Kick','P2 Strong Kick','P2 Start','P2 Coin'}
@@ -35,7 +36,7 @@ end
 
 -- hitstun detection function
 function IsHit(player, hitState, hit, health, state)
-    if (health < player.previousHealth)
+    if (health < (player.previousHealth - ChipDmgTolerance))
     then
         hit = 1
         hitState = state
