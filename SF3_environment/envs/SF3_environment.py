@@ -96,7 +96,10 @@ class SF3Env(gym.Env):
         meter_pl = 3
         stun_pl = 5
         stun_opp = 13
-        got_hit = False
+        is_hit_pl = 6
+        is_hit_opp = 14
+        is_thrown_pl = 7
+        is_thrown_opp = 15
 
         # get arrays from the observation dictionaries
         prev_state = self.flatten_obs(prev_obs)
@@ -107,11 +110,12 @@ class SF3Env(gym.Env):
             r = -10
         elif new_state[health_opp] == 0: # terminal success (opponent lost)
             r = 10
-        if prev_state[health_pl] > new_state[health_pl]: # player got hit
+        if (new_state[is_hit_pl] and (not prev_state[is_hit_pl])) or (new_state[is_thrown_pl] and (not prev_state[is_thrown_pl])): # player got hit
             r -= 0.3
-            got_hit = True
-        if prev_state[health_opp] > new_state[health_opp]: # opponent got hit
+        if (new_state[is_hit_opp] and (not prev_state[is_hit_opp])) or (new_state[is_thrown_opp] and (not prev_state[is_thrown_opp])): # opponent got hit or thrown
             r += 0.3
+        if new_state[is_hit_opp]:
+            r += 0.001
         # time-step penalty
         if new_state[health_pl] <= new_state[health_opp]:
             r -= 0.05
@@ -125,8 +129,8 @@ class SF3Env(gym.Env):
             r += 0.5
         
         # meter related rewards and penalties
-        if new_state[meter_pl] > prev_state[meter_pl] and (not got_hit):
-            r += 0.1
+        if new_state[meter_pl] > prev_state[meter_pl] and (not new_state[is_hit_opp]):
+            r += 0.01
         
         return r
         
