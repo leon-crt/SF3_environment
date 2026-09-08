@@ -15,7 +15,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 emu_path = PACKAGE_DIR / "fbneo" / "env_emu.exe"
 
 HOST = "127.0.0.1"
-base_port = 42069
+base_port = 50_000
 
 input_size = 10
 
@@ -80,7 +80,10 @@ class SF3Env(gym.Env):
     
     def _parse_state(self, state):
         res = state.split(sep=',')[:-1]
-        res = res[:-4] + res[-2:]
+        if self.mode == "test":
+            res = res[:-4] + res[-2:]
+        else:
+            res = res[:-2]
         res = [int(x) for x in res]
         return res
     
@@ -111,10 +114,7 @@ class SF3Env(gym.Env):
         elif new_state[health_opp] == 0: # terminal success (opponent lost)
             r = 10
         if (new_state[is_hit_pl] and (not prev_state[is_hit_pl])) or (new_state[is_thrown_pl] and (not prev_state[is_thrown_pl])): # player got hit
-            if prev_state[health_pl] - new_state[health_pl] < 5:
-                r -= 0.15 
-            else:
-                r -= 0.3
+            r -= 0.35
         if (new_state[is_hit_opp] and (not prev_state[is_hit_opp])) or (new_state[is_thrown_opp] and (not prev_state[is_thrown_opp])): # opponent got hit or thrown
             r += 0.3
         if new_state[is_hit_opp]:
