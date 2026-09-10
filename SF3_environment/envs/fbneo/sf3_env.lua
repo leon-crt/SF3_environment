@@ -12,7 +12,7 @@ StunnedP1, StunnedP2 = false, false
 CanRecoverFromStunP1, CanRecoverFromStunP2 = false, false
 HitStateP1, HitStateP2 = nil, nil
 RoundNumber = 0
-Host, Port = "127.0.0.1", 42069
+Host, Port = "127.0.0.1"
 Timeout = 3
 Desynced = false
 Screen_width = 383
@@ -94,7 +94,7 @@ function FormatState(p1, p2, extraInfo)
         raw_string = raw_string .. extraInfo .. ','
     end
     
-    local padding_len = 200 - #raw_string
+    local padding_len = 100 - #raw_string
     
     local padded_string = string.format("%s%s",raw_string, string.rep('#', padding_len))
     return padded_string, padding_len

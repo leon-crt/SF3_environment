@@ -15,7 +15,7 @@ PACKAGE_DIR = Path(__file__).resolve().parent
 emu_path = PACKAGE_DIR / "fbneo" / "env_emu.exe"
 
 HOST = "127.0.0.1"
-base_port = 50_000
+base_port = 50000
 
 input_size = 10
 
@@ -170,7 +170,7 @@ class SF3Env(gym.Env):
                 self.socket.send(bytes(config + '\r\n', "utf-8"))
 
                 # receive first state
-                data = self.socket.recv(200)
+                data = self.socket.recv(100)
                 # catch graceful disconnection
                 if not data:
                     raise ConnectionError(f"Client {HOST} disconnected gracefully.")
@@ -215,7 +215,7 @@ class SF3Env(gym.Env):
         terminated = False
 
         # receive next game state
-        data = self.socket.recv(200)
+        data = self.socket.recv(100)
 
         # catch graceful disconnection
         if not data:
